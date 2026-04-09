@@ -704,6 +704,143 @@ class Viv_Agent_CLI {
     /* ================================================================ */
 
     /**
+     * Export a grid with its cards and facets as a portable JSON bundle.
+     *
+     * ## OPTIONS
+     *
+     * --id=<id>
+     * : Grid ID to export
+     *
+     * [--file=<path>]
+     * : Write to file instead of stdout
+     *
+     * ## EXAMPLES
+     *
+     *     wp viv export --id=3
+     *     wp viv export --id=3 --file=grid-3-export.json
+     *
+     * @subcommand export
+     */
+    public function export_grid( $args, $assoc_args ) {
+        global $wpdb;
+        $id = (int) ( $assoc_args['id'] ?? 0 );
+        if ( ! $id ) { WP_CLI::error( '--id is required' ); return; }
+
+        $grid = $wpdb->get_row( $wpdb->prepare(
+            "SELECT * FROM {$wpdb->prefix}wpgb_grids WHERE id = %d", $id
+        ) );
+        if ( ! $grid ) { WP_CLI::error( "Grid {$id} not found." ); return; }
+
+        $settings = json_decode( $grid->settings, true );
+        $export   = [ 'grid' => (array) $grid ];
+        $export['grid']['settings'] = $settings;
+
+        // Collect card IDs
+        $card_ids = [];
+        if ( ! empty( $settings['card_types'] ) ) {
+            foreach ( $settings['card_types'] as $ct ) {
+                if ( ! empty( $ct['card'] ) ) $card_ids[] = (int) $ct['card'];
+            }
+        }
+        if ( ! empty( $settings['cards'] ) ) {
+            $card_ids = array_merge( $card_ids, array_map( 'intval', (array) $settings['cards'] ) );
+        }
+        $card_ids = array_unique( array_filter( $card_ids ) );
+
+        // Fetch cards
+        $export['cards'] = [];
+        if ( $card_ids ) {
+            $rows = $wpdb->get_results( "SELECT * FROM {$wpdb->prefix}wpgb_cards WHERE id IN (" . implode( ',', $card_ids ) . ")" );
+            foreach ( $rows as $r ) {
+                $c = (array) $r;
+                $c['settings'] = json_decode( $c['settings'] );
+                $c['layout']   = json_decode( $c['layout'] );
+                $export['cards'][] = $c;
+            }
+        }
+
+        // Collect facet IDs from grid settings
+        $facet_ids = [];
+        if ( ! empty( $settings['facets'] ) ) {
+            $facet_ids = array_map( 'intval', (array) $settings['facets'] );
+        }
+        if ( ! empty( $settings['grid_layout'] ) ) {
+            foreach ( (array) $settings['grid_layout'] as $area ) {
+                if ( ! empty( $area['facets'] ) ) {
+                    $facet_ids = array_merge( $facet_ids, array_map( 'intval', (array) $area['facets'] ) );
+                }
+            }
+        }
+        $facet_ids = array_unique( array_filter( $facet_ids ) );
+
+        // Fetch facets
+        $export['facets'] = [];
+        if ( $facet_ids ) {
+            $rows = $wpdb->get_results( "SELECT * FROM {$wpdb->prefix}wpgb_facets WHERE id IN (" . implode( ',', $facet_ids ) . ")" );
+            foreach ( $rows as $r ) {
+                $f = (array) $r;
+                $f['settings'] = json_decode( $f['settings'] );
+                $export['facets'][] = $f;
+            }
+        }
+
+        $json = json_encode( $export, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES );
+
+        if ( ! empty( $assoc_args['file'] ) ) {
+            file_put_contents( $assoc_args['file'], $json );
+            WP_CLI::success( "Exported grid {$id} ({$grid->name}) with " . count( $export['cards'] ) . " cards, " . count( $export['facets'] ) . " facets to {$assoc_args['file']}" );
+        } else {
+            WP_CLI::line( $json );
+        }
+    }
+
+    /**
+     * Trigger WPGB facet index rebuild.
+     *
+     * ## OPTIONS
+     *
+     * [--facet=<id>]
+     * : Reindex a specific facet ID only
+     *
+     * ## EXAMPLES
+     *
+     *     wp viv reindex
+     *     wp viv reindex --facet=1
+     *
+     * @subcommand reindex
+     */
+    public function reindex( $args, $assoc_args ) {
+        global $wpdb;
+
+        $facet_id = ! empty( $assoc_args['facet'] ) ? (int) $assoc_args['facet'] : 0;
+
+        if ( $facet_id ) {
+            $facet = $wpdb->get_row( $wpdb->prepare(
+                "SELECT id, name, slug FROM {$wpdb->prefix}wpgb_facets WHERE id = %d", $facet_id
+            ) );
+            if ( ! $facet ) { WP_CLI::error( "Facet {$facet_id} not found." ); return; }
+
+            // Clear existing index entries for this facet
+            $deleted = $wpdb->query( $wpdb->prepare(
+                "DELETE FROM {$wpdb->prefix}wpgb_index WHERE slug = %s", $facet->slug
+            ) );
+            WP_CLI::line( "Cleared {$deleted} index entries for facet {$facet->name} ({$facet->slug})" );
+            WP_CLI::line( "To fully reindex, use WP Admin → WP Grid Builder → Settings → Index." );
+        } else {
+            // Clear entire index
+            $count = $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}wpgb_index" );
+            $wpdb->query( "TRUNCATE TABLE {$wpdb->prefix}wpgb_index" );
+            WP_CLI::line( "Cleared {$count} index entries." );
+            WP_CLI::line( "To rebuild the index, visit WP Admin → WP Grid Builder → Settings → Index." );
+            WP_CLI::line( "Or trigger via REST: POST /wp-json/wpgb/v2/settings with indexer action." );
+        }
+
+        WP_CLI::success( 'Index cleared. Rebuild via WPGB admin to repopulate.' );
+    }
+
+    /* ================================================================ */
+
+    /**
      * Helper: print a pass/fail check line.
      */
     private static function check( $label, $pass, $detail = '' ) {

@@ -150,6 +150,89 @@ wp viv patch-grid --id=1 --layout='{"area-top-1":{"facets":[4,1,11]},"sidebar-le
 
 ---
 
+### `wp viv list <type> [--format=json]`
+
+List all grids, cards, facets, or styles.
+
+```bash
+wp viv list grids                # Table format
+wp viv list cards --format=json  # JSON output
+wp viv list facets
+wp viv list styles
+```
+
+### `wp viv get <type> --id=N`
+
+Get full JSON settings for a single object.
+
+```bash
+wp viv get grid --id=1
+wp viv get card --id=9
+wp viv get facet --id=16
+```
+
+### `wp viv create <type> --json='{...}' [--name=X]`
+
+Create a new grid, card, facet, or style from JSON. Supports `@file.json` syntax.
+
+```bash
+wp viv create grid --name="My Grid" --json='{"type":"masonry","source":"post_type","post_type":["resource"],"card_types":[{"card":1,"conditions":[]}]}'
+wp viv create facet --json='{"name":"My Filter","type":"checkbox","slug":"my_filter","source":"taxonomy/resource_category"}'
+wp viv create grid --json=@grid-config.json
+```
+
+### `wp viv update <type> --id=N --json='{...}' [--replace]`
+
+Merge-update settings (or `--replace` to overwrite all settings).
+
+```bash
+wp viv update grid --id=1 --json='{"carousel":true,"auto_play":4000}'
+wp viv update facet --id=16 --json='{"min_chars":3}'
+```
+
+### `wp viv delete <type> --id=N`
+
+Delete a grid, card, facet, or style.
+
+### `wp viv import-demos [--cards] [--facets] [--styles] [--all]`
+
+Import WPGB's 20 built-in card designs, 8 facets, and global style. Skips items that already exist.
+
+```bash
+wp viv import-demos --all
+wp viv import-demos --cards --styles
+```
+
+### `wp viv export --id=N [--file=<path>]`
+
+Export a grid with its cards and facets as a portable JSON bundle.
+
+```bash
+wp viv export --id=3                            # Print to stdout
+wp viv export --id=3 --file=grid-3-export.json  # Save to file
+```
+
+### `wp viv reindex [--facet=N]`
+
+Clear the WPGB facet index (or a specific facet's entries). After clearing, rebuild via WP Admin → WP Grid Builder → Settings → Index.
+
+```bash
+wp viv reindex            # Clear entire index
+wp viv reindex --facet=1  # Clear specific facet
+```
+
+### `wp viv describe <type>`
+
+Output a settings schema with types, defaults, allowed values, and descriptions. Useful for agents discovering what settings are available.
+
+```bash
+wp viv describe grid
+wp viv describe facet
+wp viv describe card
+```
+
+---
+
 ## Admin Diagnostics Page
 
 **WP Admin → Tools → Viv Diagnostics**
