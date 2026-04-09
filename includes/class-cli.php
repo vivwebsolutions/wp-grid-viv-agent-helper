@@ -513,18 +513,20 @@ class Viv_Agent_CLI {
      * [--styles]
      * : Import demo styles
      *
+     * [--grids]
+     * : Import demo grids (Blog, Portfolio, eCommerce)
+     *
      * [--all]
-     * : Import everything
+     * : Import everything (32 items)
      *
      * ## EXAMPLES
      *
      *     wp viv import-demos --all
-     *     wp viv import-demos --cards --styles
+     *     wp viv import-demos --cards --facets --grids
      *
      * @subcommand import-demos
      */
     public function import_demos( $args, $assoc_args ) {
-        global $wpdb;
 
         $demo_file = WP_CONTENT_DIR . '/plugins/wp-grid-builder/admin/json/demos.json';
         if ( ! file_exists( $demo_file ) ) {
@@ -532,81 +534,37 @@ class Viv_Agent_CLI {
             return;
         }
 
-        $data     = json_decode( file_get_contents( $demo_file ), true );
-        $all      = isset( $assoc_args['all'] );
-        $do_cards = $all || isset( $assoc_args['cards'] );
-        $do_fcts  = $all || isset( $assoc_args['facets'] );
-        $do_styl  = $all || isset( $assoc_args['styles'] );
+        $data = json_decode( file_get_contents( $demo_file ), true );
+        $all  = isset( $assoc_args['all'] );
 
-        if ( ! $do_cards && ! $do_fcts && ! $do_styl ) {
-            WP_CLI::error( 'Specify --cards, --facets, --styles, or --all' );
+        // Build content array with only requested types
+        $content = [];
+        if ( $all || isset( $assoc_args['cards'] ) )  $content['cards']  = $data['cards']  ?? [];
+        if ( $all || isset( $assoc_args['facets'] ) )  $content['facets'] = $data['facets'] ?? [];
+        if ( $all || isset( $assoc_args['styles'] ) )  $content['styles'] = $data['styles'] ?? [];
+        if ( $all || isset( $assoc_args['grids'] ) )   $content['grids']  = $data['grids']  ?? [];
+
+        if ( empty( $content ) ) {
+            WP_CLI::error( 'Specify --cards, --facets, --styles, --grids, or --all' );
             return;
         }
 
-        $now     = current_time( 'mysql', true );
-        $counts  = [ 'cards' => 0, 'facets' => 0, 'styles' => 0 ];
-
-        if ( $do_cards && ! empty( $data['cards'] ) ) {
-            foreach ( $data['cards'] as $card ) {
-                $exists = $wpdb->get_var( $wpdb->prepare(
-                    "SELECT id FROM {$wpdb->prefix}wpgb_cards WHERE name = %s", $card['name']
-                ) );
-                if ( $exists ) { WP_CLI::line( "  Skip: {$card['name']} (already exists, id={$exists})" ); continue; }
-                $wpdb->insert( $wpdb->prefix . 'wpgb_cards', [
-                    'name'          => $card['name'],
-                    'date'          => $now,
-                    'modified_date' => $now,
-                    'type'          => $card['type'] ?? 'masonry',
-                    'settings'      => wp_json_encode( $card['settings'] ?? [] ),
-                    'layout'        => wp_json_encode( $card['layout'] ?? [] ),
-                    'css'           => $card['css'] ?? '',
-                ] );
-                $counts['cards']++;
-            }
+        // Use WPGB's own Import class for proper sanitization and CSS generation.
+        // Raw SQL inserts produce empty cards because the v2 layout format needs normalization.
+        $import_class = 'WP_Grid_Builder\Includes\Routes\Import';
+        if ( ! class_exists( $import_class ) ) {
+            WP_CLI::error( 'WPGB Import class not found. Is WP Grid Builder active?' );
+            return;
         }
 
-        if ( $do_fcts && ! empty( $data['facets'] ) ) {
-            foreach ( $data['facets'] as $facet ) {
-                $slug = $facet['slug'] ?? sanitize_title( $facet['name'] );
-                $exists = $wpdb->get_var( $wpdb->prepare(
-                    "SELECT id FROM {$wpdb->prefix}wpgb_facets WHERE slug = %s", $slug
-                ) );
-                if ( $exists ) { WP_CLI::line( "  Skip: {$facet['name']} (slug={$slug} exists, id={$exists})" ); continue; }
-                $wpdb->insert( $wpdb->prefix . 'wpgb_facets', [
-                    'name'          => $facet['name'],
-                    'slug'          => $slug,
-                    'date'          => $now,
-                    'modified_date' => $now,
-                    'type'          => $facet['type'] ?? 'checkbox',
-                    'source'        => $facet['source'] ?? '',
-                    'settings'      => wp_json_encode( $facet['settings'] ?? [] ),
-                ] );
-                $counts['facets']++;
-            }
-        }
+        $import  = new $import_class();
+        $request = new \WP_REST_Request( 'POST', '/wpgb/v2/import' );
+        $request->set_param( 'content', $content );
 
-        if ( $do_styl && ! empty( $data['styles'] ) ) {
-            foreach ( $data['styles'] as $style ) {
-                $exists = $wpdb->get_var( $wpdb->prepare(
-                    "SELECT id FROM {$wpdb->prefix}wpgb_styles WHERE name = %s", $style['name']
-                ) );
-                if ( $exists ) { WP_CLI::line( "  Skip: {$style['name']} (exists, id={$exists})" ); continue; }
-                $wpdb->insert( $wpdb->prefix . 'wpgb_styles', [
-                    'name'          => $style['name'],
-                    'date'          => $now,
-                    'modified_date' => $now,
-                    'type'          => $style['type'] ?? 'checkbox',
-                    'settings'      => wp_json_encode( $style['settings'] ?? [] ),
-                    'css'           => $style['css'] ?? '',
-                ] );
-                $counts['styles']++;
-            }
-        }
+        $response = $import->import( $request );
+        $result   = $response->get_data();
 
-        WP_CLI::success( sprintf(
-            'Imported: %d cards, %d facets, %d styles',
-            $counts['cards'], $counts['facets'], $counts['styles']
-        ) );
+        WP_CLI::success( $result['message'] ?? 'Import complete.' );
     }
 
     /**
