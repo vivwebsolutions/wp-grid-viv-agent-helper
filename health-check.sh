@@ -38,7 +38,7 @@ echo "Base: $BASE"
 echo ""
 
 echo "--- Pages ---"
-for page in "" resources-grid demo-v2 demo-search-filter demo-sort demo-toggle demo-save-search demo-bookmarks demo-map demo-mobile-filters demo-card-styles demo-autocomplete demo-parent; do
+for page in "" resources-grid demo-v2 demo-search-filter demo-sort demo-toggle demo-save-search demo-bookmarks demo-map demo-mobile-filters demo-card-styles demo-autocomplete demo-parent getting-started; do
     check "/$page/" "$BASE/$page/" "200"
 done
 
