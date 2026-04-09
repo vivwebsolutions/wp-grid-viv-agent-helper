@@ -52,9 +52,28 @@ add_action('init', function() {
     ]);
 });
 
-// Custom favicon for the demo site
+// Custom favicon + Open Graph meta for social sharing
 add_action('wp_head', function() {
     echo '<link rel="icon" type="image/svg+xml" href="' . get_stylesheet_directory_uri() . '/favicon.svg">' . "\n";
+
+    // Open Graph meta tags for social sharing
+    $title = wp_title('–', false, 'right') . get_bloginfo('name');
+    $desc = 'Interactive demos of every Viv Grid Builder plugin — faceted search, toggle filters, save search, bookmarks, autocomplete, maps, and more.';
+    $url = home_url($_SERVER['REQUEST_URI'] ?? '/');
+
+    if (is_singular()) {
+        global $post;
+        if ($post) {
+            $title = $post->post_title . ' – ' . get_bloginfo('name');
+            if ($post->post_excerpt) $desc = $post->post_excerpt;
+        }
+    }
+
+    echo '<meta property="og:title" content="' . esc_attr($title) . '">' . "\n";
+    echo '<meta property="og:description" content="' . esc_attr(wp_trim_words($desc, 30)) . '">' . "\n";
+    echo '<meta property="og:url" content="' . esc_url($url) . '">' . "\n";
+    echo '<meta property="og:type" content="website">' . "\n";
+    echo '<meta property="og:site_name" content="Viv Grid Demo">' . "\n";
 }, 1);
 
 // Widen content area on pages with WPGB grids (issue vivwebsolutions/Viv-docs#26)
