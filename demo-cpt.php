@@ -62,6 +62,20 @@ add_action('wp_head', function() {
     if ( ! is_singular('page') ) return;
     ?>
     <style>
+    /* Ensure highlighter tooltips don't block facet inputs */
+    .viv-hl-callout {
+        pointer-events: none;
+    }
+    .viv-hl-callout .viv-hl-close {
+        pointer-events: auto;
+    }
+    /* Reduce excessive whitespace between header and content */
+    .site-content {
+        padding-top: 20px;
+    }
+    .entry-header {
+        margin-bottom: 10px;
+    }
     /* Widen the content area on pages with WPGB grids */
     .page #primary {
         max-width: 1200px;
