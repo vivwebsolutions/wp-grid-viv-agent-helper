@@ -171,23 +171,23 @@ wp viv get card --id=9
 wp viv get facet --id=16
 ```
 
-### `wp viv create <type> --json='{...}' [--name=X]`
+### `wp viv create <type> --settings='{...}' [--name=X]`
 
 Create a new grid, card, facet, or style from JSON. Supports `@file.json` syntax.
 
 ```bash
-wp viv create grid --name="My Grid" --json='{"type":"masonry","source":"post_type","post_type":["resource"],"card_types":[{"card":1,"conditions":[]}]}'
-wp viv create facet --json='{"name":"My Filter","type":"checkbox","slug":"my_filter","source":"taxonomy/resource_category"}'
-wp viv create grid --json=@grid-config.json
+wp viv create grid --name="My Grid" --settings='{"type":"masonry","source":"post_type","post_type":["resource"],"card_types":[{"card":1,"conditions":[]}]}'
+wp viv create facet --settings='{"name":"My Filter","type":"checkbox","slug":"my_filter","source":"taxonomy/resource_category"}'
+wp viv create grid --settings=@grid-config.json
 ```
 
-### `wp viv update <type> --id=N --json='{...}' [--replace]`
+### `wp viv update <type> --id=N --settings='{...}' [--replace]`
 
 Merge-update settings (or `--replace` to overwrite all settings).
 
 ```bash
-wp viv update grid --id=1 --json='{"carousel":true,"auto_play":4000}'
-wp viv update facet --id=16 --json='{"min_chars":3}'
+wp viv update grid --id=1 --settings='{"carousel":true,"auto_play":4000}'
+wp viv update facet --id=16 --settings='{"min_chars":3}'
 ```
 
 ### `wp viv delete <type> --id=N`
