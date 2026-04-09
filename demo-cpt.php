@@ -95,6 +95,51 @@ add_action('wp_head', function() {
     body.in-iframe .entry-title { display: none !important; }
     body.in-iframe #primary { max-width: 100%; width: 100%; margin: 0; padding: 8px; }
     body.in-iframe .entry-content { margin-top: 0; }
+    /* Map v2 split layout: cards list next to map (Viv-docs #41) */
+    .vivgb-map-split .wpgb-wrapper {
+        display: flex;
+        flex-direction: row;
+        gap: 0;
+    }
+    .vivgb-map-split .wpgb-sidebar {
+        flex: 0 0 240px;
+    }
+    .vivgb-map-split .wpgb-main {
+        flex: 1;
+        display: flex;
+        flex-direction: row;
+    }
+    .vivgb-map-split .wpgb-facet:has(#vivgb-map) {
+        flex: 1 1 60%;
+        height: 500px !important;
+    }
+    .vivgb-map-split #vivgb-map {
+        height: 500px !important;
+    }
+    .vivgb-map-split .wpgb-layout {
+        flex: 0 0 40%;
+        max-height: 500px;
+        overflow-y: auto;
+    }
+    .vivgb-map-split .wpgb-card {
+        width: 100% !important;
+        position: static !important;
+        border-bottom: 1px solid #e0e0e0;
+    }
+    .vivgb-map-split .wpgb-card.active {
+        border-left: 3px solid #3b82f6;
+        background: #f0f7ff;
+    }
+    @media (max-width: 768px) {
+        .vivgb-map-split .wpgb-main {
+            flex-direction: column;
+        }
+        .vivgb-map-split .wpgb-facet:has(#vivgb-map),
+        .vivgb-map-split .wpgb-layout {
+            flex: none;
+            width: 100%;
+        }
+    }
     /* Hide the "Sorry, no content found" placeholder before viv-addon AJAX replaces it */
     .wpgb-no-result {
         display: none !important;
