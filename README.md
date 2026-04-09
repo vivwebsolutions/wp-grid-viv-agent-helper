@@ -216,6 +216,14 @@ Status: Plugin Registry ✅ viv_toggle, viv_parent
 
 ---
 
+## Demo Site
+
+This plugin is installed on the Viv Grid demo site: [https://p1glossary.wpenginepowered.com/](https://p1glossary.wpenginepowered.com/)
+
+The demo site has 12 grids, 16 facets, and 62 resource posts — use `wp viv status` via SSH to see diagnostics. The `demo-cpt.php` mu-plugin reference copy is included in this repo.
+
+---
+
 ## Development Status
 
 - `viv-logic`: 9/10 — auto-register is robust; transient + activation hooks cover all normal paths
