@@ -52,6 +52,11 @@ add_action('init', function() {
     ]);
 });
 
+// Custom favicon for the demo site
+add_action('wp_head', function() {
+    echo '<link rel="icon" type="image/svg+xml" href="' . get_stylesheet_directory_uri() . '/favicon.svg">' . "\n";
+}, 1);
+
 // Widen content area on pages with WPGB grids (issue vivwebsolutions/Viv-docs#26)
 add_action('wp_head', function() {
     if ( ! is_singular('page') ) return;
