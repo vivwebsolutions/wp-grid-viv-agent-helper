@@ -196,7 +196,7 @@ add_action('wp_head', function() {
     // Usage: <a href="#" class="viv-feature-link" data-highlight=".wpgb-facet-9">By Topic</a>
     // Or via URL: ?highlight=.wpgb-facet-9
     document.addEventListener('DOMContentLoaded', function() {
-        function highlightElement(selector) {
+        function highlightElement(selector, tooltipText) {
             var el = document.querySelector(selector);
             if (!el) return;
             // Open parent accordion if closed
@@ -206,22 +206,39 @@ add_action('wp_head', function() {
             el.scrollIntoView({ behavior: 'smooth', block: 'center' });
             // Add highlight
             el.classList.add('viv-highlight');
+            // Show tooltip if text provided
+            if (tooltipText) {
+                var tip = document.createElement('div');
+                tip.className = 'viv-highlight-tip';
+                tip.textContent = tooltipText;
+                tip.style.cssText = 'position:absolute;top:-36px;left:50%;transform:translateX(-50%);background:#1a6ebd;color:#fff;padding:6px 14px;border-radius:6px;font-size:13px;font-weight:600;white-space:nowrap;z-index:300;pointer-events:none;';
+                el.style.position = el.style.position || 'relative';
+                el.appendChild(tip);
+                setTimeout(function() { if (tip.parentNode) tip.remove(); }, 3500);
+            }
             setTimeout(function() { el.classList.remove('viv-highlight'); }, 3500);
         }
         // Handle URL param
         var params = new URLSearchParams(window.location.search);
         var hl = params.get('highlight');
         if (hl) {
-            // Wait for viv-addon to load content
-            setTimeout(function() { highlightElement(hl); }, 2000);
+            // Wait for viv-addon to load content, then highlight with tooltip
+            setTimeout(function() { highlightElement(hl, 'Featured element'); }, 2000);
         }
-        // Handle click on feature links
+        // Handle click on feature links — update URL param + highlight
         document.addEventListener('click', function(e) {
             var link = e.target.closest('.viv-feature-link');
             if (link) {
                 e.preventDefault();
                 var sel = link.getAttribute('data-highlight');
-                if (sel) highlightElement(sel);
+                var tip = link.getAttribute('data-tooltip') || link.textContent.trim();
+                if (sel) {
+                    // Update URL without reload so the link is shareable
+                    var url = new URL(window.location);
+                    url.searchParams.set('highlight', sel);
+                    history.replaceState(null, '', url);
+                    highlightElement(sel, tip);
+                }
             }
         });
     });
