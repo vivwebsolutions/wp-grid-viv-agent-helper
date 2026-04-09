@@ -163,6 +163,21 @@ add_action('wp_head', function() {
     .wpgb-no-result {
         display: none !important;
     }
+    /* Loading indicator: show a subtle pulse while grid loads (UX audit #43) */
+    .wpgb-loading-viv .wpgb-viewport::before {
+        content: '';
+        display: block;
+        width: 40px;
+        height: 40px;
+        margin: 40px auto;
+        border: 3px solid #e0e0e0;
+        border-top-color: #3b82f6;
+        border-radius: 50%;
+        animation: viv-spin 0.8s linear infinite;
+    }
+    @keyframes viv-spin {
+        to { transform: rotate(360deg); }
+    }
     /* Feature highlight pulse animation (Viv-docs #27) */
     @keyframes viv-highlight-pulse {
         0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.5); }
