@@ -342,7 +342,7 @@ class Viv_Agent_CLI {
      * <type>
      * : Object type: grid, card, facet, or style
      *
-     * --json=<json>
+     * --settings=<json>
      * : Full settings JSON (or path to .json file prefixed with @)
      *
      * [--name=<name>]
@@ -350,9 +350,9 @@ class Viv_Agent_CLI {
      *
      * ## EXAMPLES
      *
-     *     wp viv create grid --name="My Grid" --json='{"type":"masonry","source":"post_type","post_type":["post"]}'
-     *     wp viv create facet --json='{"name":"My Search","type":"search","slug":"my_search"}'
-     *     wp viv create grid --json=@grid-config.json
+     *     wp viv create grid --name="My Grid" --settings='{"type":"masonry","source":"post_type","post_type":["post"]}'
+     *     wp viv create facet --settings='{"name":"My Search","type":"search","slug":"my_search"}'
+     *     wp viv create grid --settings=@grid-config.json
      *
      * @subcommand create
      */
@@ -362,7 +362,7 @@ class Viv_Agent_CLI {
         $table = self::get_table( $type . 's' );
         if ( ! $table ) return;
 
-        $json_str = $assoc_args['json'] ?? '{}';
+        $json_str = $assoc_args['settings'] ?? '{}';
         if ( substr( $json_str, 0, 1 ) === '@' ) {
             $file = substr( $json_str, 1 );
             if ( ! file_exists( $file ) ) { WP_CLI::error( "File not found: {$file}" ); return; }
@@ -418,7 +418,7 @@ class Viv_Agent_CLI {
      * --id=<id>
      * : Object ID to update
      *
-     * --json=<json>
+     * --settings=<json>
      * : JSON settings to merge (or path to .json file prefixed with @)
      *
      * [--replace]
@@ -426,8 +426,8 @@ class Viv_Agent_CLI {
      *
      * ## EXAMPLES
      *
-     *     wp viv update grid --id=1 --json='{"en_viv_search":true,"carousel":true}'
-     *     wp viv update facet --id=16 --json='{"min_chars":3}'
+     *     wp viv update grid --id=1 --settings='{"en_viv_search":true,"carousel":true}'
+     *     wp viv update facet --id=16 --settings='{"min_chars":3}'
      *
      * @subcommand update
      */
@@ -442,7 +442,7 @@ class Viv_Agent_CLI {
         $row = $wpdb->get_row( $wpdb->prepare( "SELECT settings FROM {$table} WHERE id = %d", $id ) );
         if ( ! $row ) { WP_CLI::error( ucfirst( $type ) . " {$id} not found." ); return; }
 
-        $json_str = $assoc_args['json'] ?? '{}';
+        $json_str = $assoc_args['settings'] ?? '{}';
         if ( substr( $json_str, 0, 1 ) === '@' ) {
             $file = substr( $json_str, 1 );
             if ( ! file_exists( $file ) ) { WP_CLI::error( "File not found: {$file}" ); return; }
