@@ -575,74 +575,35 @@ class Viv_Agent_CLI {
      * <type>
      * : Object type: grid, card, facet, or style
      *
+     * [--format=<format>]
+     * : Output format: table (default) or json
+     *
      * ## EXAMPLES
      *
      *     wp viv describe grid
      *     wp viv describe facet
+     *     wp viv describe grid --format=json
      *
      * @subcommand describe
      */
     public function describe_object( $args, $assoc_args ) {
-        $type = $args[0] ?? '';
-
-        $schemas = [
-            'grid' => [
-                'name'               => [ 'type' => 'string',  'desc' => 'Grid display name' ],
-                'type'               => [ 'type' => 'string',  'desc' => 'Layout type', 'values' => 'masonry, metro, justified' ],
-                'source'             => [ 'type' => 'string',  'desc' => 'Data source', 'values' => 'post_type, taxonomy, user' ],
-                'post_type'          => [ 'type' => 'array',   'desc' => 'Post types to query', 'example' => '["resource","post"]' ],
-                'post_status'        => [ 'type' => 'array',   'desc' => 'Post statuses', 'example' => '["publish"]' ],
-                'posts_per_page'     => [ 'type' => 'int',     'desc' => 'Items per page (-1 for all)' ],
-                'cards'              => [ 'type' => 'array',   'desc' => 'Card IDs (v1 format)', 'example' => '[1]' ],
-                'card_types'         => [ 'type' => 'array',   'desc' => 'Card assignments with conditions (v2)', 'example' => '[{"card":1,"conditions":[]}]' ],
-                'facets'             => [ 'type' => 'array',   'desc' => 'Facet IDs used by grid', 'example' => '[1,2,5]' ],
-                'card_sizes'         => [ 'type' => 'array',   'desc' => 'Responsive column/height per breakpoint' ],
-                'grid_layout'        => [ 'type' => 'object',  'desc' => 'Facet placement in areas', 'example' => '{"area-top-1":{"facets":[1,2]}}' ],
-                'thumbnail_size'     => [ 'type' => 'string',  'desc' => 'WP image size', 'values' => 'thumbnail, medium, medium_large, large, full' ],
-                'carousel'           => [ 'type' => 'boolean', 'desc' => 'Enable carousel/slider mode' ],
-                'auto_play'          => [ 'type' => 'int',     'desc' => 'Carousel autoplay ms (0=off)' ],
-                'draggable'          => [ 'type' => 'boolean', 'desc' => 'Allow drag to scroll carousel' ],
-                'slide_align'        => [ 'type' => 'string',  'desc' => 'Carousel alignment', 'values' => 'left, center, right' ],
-                'group_cells'        => [ 'type' => 'int',     'desc' => 'Cards per carousel slide' ],
-                'en_viv_search'      => [ 'type' => 'boolean', 'desc' => '(viv) Use viv-addon AJAX instead of WPGB default' ],
-                'card_theme_template'=> [ 'type' => 'string',  'desc' => '(viv) PHP template path relative to ABSPATH' ],
-                'en_viv_popup'       => [ 'type' => 'boolean', 'desc' => '(viv) Enable card popup lightbox' ],
-                'en_viv_mobile_filters' => [ 'type' => 'boolean', 'desc' => '(viv) Enable mobile filter drawer' ],
-                'viv_mob_breakpoint' => [ 'type' => 'int',     'desc' => '(viv) Mobile breakpoint in px' ],
-            ],
-            'card' => [
-                'name'             => [ 'type' => 'string',  'desc' => 'Card display name' ],
-                'type'             => [ 'type' => 'string',  'desc' => 'Card type', 'values' => 'masonry, metro' ],
-                'card_layout'      => [ 'type' => 'string',  'desc' => 'Alignment', 'values' => 'vertical, horizontal' ],
-                'display_media'    => [ 'type' => 'boolean', 'desc' => 'Show media/thumbnail section' ],
-                'display_overlay'  => [ 'type' => 'boolean', 'desc' => 'Show media overlay layer' ],
-                'display_footer'   => [ 'type' => 'boolean', 'desc' => 'Show footer section' ],
-                'flex_media'       => [ 'type' => 'boolean', 'desc' => 'Auto-height media' ],
-                'responsive'       => [ 'type' => 'boolean', 'desc' => 'Responsive font scaling' ],
-                'layout'           => [ 'type' => 'array',   'desc' => 'Card layers + blocks JSON array' ],
-            ],
-            'facet' => [
-                'name'            => [ 'type' => 'string',  'desc' => 'Facet display name' ],
-                'slug'            => [ 'type' => 'string',  'desc' => 'URL parameter name (e.g. _category)' ],
-                'type'            => [ 'type' => 'string',  'desc' => 'Facet type', 'values' => 'checkbox, radio, button, select, search, autocomplete, range, number, date, color, rating, hierarchy, az_index, selection, sort, pagination, load_more, per_page, result_count, reset, apply' ],
-                'source'          => [ 'type' => 'string',  'desc' => 'Data source', 'example' => 'taxonomy/category, post_field/post_author' ],
-                'filter_type'     => [ 'type' => 'string',  'desc' => 'Filter behavior type' ],
-                'show_empty'      => [ 'type' => 'boolean', 'desc' => 'Show choices with zero results' ],
-                'show_count'      => [ 'type' => 'boolean', 'desc' => 'Show result count per choice' ],
-                'orderby'         => [ 'type' => 'string',  'desc' => 'Sort choices by', 'values' => 'count, name, facet_order' ],
-                'order'           => [ 'type' => 'string',  'desc' => 'Sort direction', 'values' => 'asc, desc' ],
-                'logic'           => [ 'type' => 'string',  'desc' => 'Multi-select logic', 'values' => 'AND, OR' ],
-                'hierarchical'    => [ 'type' => 'boolean', 'desc' => 'Show as hierarchy tree' ],
-            ],
-            'style' => [
-                'name'  => [ 'type' => 'string', 'desc' => 'Style preset name' ],
-                'type'  => [ 'type' => 'string', 'desc' => 'Target type', 'values' => 'checkbox, radio, select, button, ...' ],
-                'css'   => [ 'type' => 'string', 'desc' => 'Generated CSS (auto-built from settings)' ],
-            ],
-        ];
+        $type    = $args[0] ?? '';
+        $format  = $assoc_args['format'] ?? 'table';
+        $schemas = self::get_describe_schemas();
 
         if ( ! isset( $schemas[ $type ] ) ) {
             WP_CLI::error( "Unknown type: {$type}. Use: grid, card, facet, or style" );
+            return;
+        }
+
+        if ( 'json' === $format ) {
+            WP_CLI::line( wp_json_encode(
+                [
+                    'type'     => $type,
+                    'settings' => $schemas[ $type ],
+                ],
+                JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
+            ) );
             return;
         }
 
@@ -652,8 +613,18 @@ class Viv_Agent_CLI {
             $line = "  {$key}";
             $line .= str_repeat( ' ', max( 1, 28 - strlen( $key ) ) );
             $line .= "({$info['type']})  {$info['desc']}";
-            if ( ! empty( $info['values'] ) ) $line .= "  [{$info['values']}]";
-            if ( ! empty( $info['example'] ) ) $line .= "  e.g. {$info['example']}";
+            if ( ! empty( $info['values'] ) ) {
+                $line .= "  [{$info['values']}]";
+            }
+            if ( array_key_exists( 'default', $info ) && '' !== $info['default'] && null !== $info['default'] ) {
+                $line .= "  default={$info['default']}";
+            }
+            if ( ! empty( $info['applies_to'] ) ) {
+                $line .= "  applies_to={$info['applies_to']}";
+            }
+            if ( ! empty( $info['example'] ) ) {
+                $line .= "  e.g. {$info['example']}";
+            }
             WP_CLI::line( $line );
         }
         WP_CLI::line( '' );
@@ -824,5 +795,87 @@ class Viv_Agent_CLI {
             return null;
         }
         return $map[ $type ];
+    }
+
+    /**
+     * Helper: schema metadata for wp viv describe.
+     */
+    private static function get_describe_schemas() {
+        return [
+            'grid' => [
+                'name'                     => [ 'type' => 'string',  'desc' => 'Grid display name' ],
+                'type'                     => [ 'type' => 'string',  'desc' => 'Layout type', 'values' => 'masonry, metro, justified' ],
+                'source'                   => [ 'type' => 'string',  'desc' => 'Data source', 'values' => 'post_type, taxonomy, user' ],
+                'post_type'                => [ 'type' => 'array',   'desc' => 'Post types to query', 'example' => '["resource","post"]' ],
+                'post_status'              => [ 'type' => 'array',   'desc' => 'Post statuses', 'example' => '["publish"]' ],
+                'posts_per_page'           => [ 'type' => 'int',     'desc' => 'Items per page (-1 for all)' ],
+                'cards'                    => [ 'type' => 'array',   'desc' => 'Card IDs (v1 format)', 'example' => '[1]' ],
+                'card_types'               => [ 'type' => 'array',   'desc' => 'Card assignments with conditions (v2)', 'example' => '[{"card":1,"conditions":[]}]' ],
+                'facets'                   => [ 'type' => 'array',   'desc' => 'Facet IDs used by grid', 'example' => '[1,2,5]' ],
+                'card_sizes'               => [ 'type' => 'array',   'desc' => 'Responsive column/height per breakpoint' ],
+                'grid_layout'              => [ 'type' => 'object',  'desc' => 'Facet placement in areas', 'example' => '{"area-top-1":{"facets":[1,2]}}' ],
+                'thumbnail_size'           => [ 'type' => 'string',  'desc' => 'WP image size', 'values' => 'thumbnail, medium, medium_large, large, full' ],
+                'carousel'                 => [ 'type' => 'boolean', 'desc' => 'Enable carousel/slider mode', 'default' => 'false' ],
+                'auto_play'                => [ 'type' => 'int',     'desc' => 'Carousel autoplay ms (0=off)', 'default' => '0' ],
+                'draggable'                => [ 'type' => 'boolean', 'desc' => 'Allow drag to scroll carousel' ],
+                'slide_align'              => [ 'type' => 'string',  'desc' => 'Carousel alignment', 'values' => 'left, center, right' ],
+                'group_cells'              => [ 'type' => 'int',     'desc' => 'Cards per carousel slide' ],
+                'en_viv_search'            => [ 'type' => 'boolean', 'desc' => '(viv) Use viv-addon AJAX instead of WPGB default', 'default' => 'false' ],
+                'en_viv_metas'             => [ 'type' => 'string',  'desc' => '(viv) Comma-separated post meta keys to pre-fetch' ],
+                'en_viv_popup'             => [ 'type' => 'boolean', 'desc' => '(viv) Enable card popup lightbox', 'default' => 'false' ],
+                'en_viv_popup_card'        => [ 'type' => 'int',     'desc' => '(viv) Card ID used for popup rendering' ],
+                'viv_popup_link_class'     => [ 'type' => 'string',  'desc' => '(viv) CSS class that triggers popup links' ],
+                'card_theme_template'      => [ 'type' => 'string',  'desc' => '(viv) PHP template path relative to ABSPATH', 'example' => 'wp-content/viv-card-template.php' ],
+                'en_viv_mobile_filters'    => [ 'type' => 'boolean', 'desc' => '(viv) Enable mobile filter drawer', 'default' => 'false' ],
+                'viv_mob_breakpoint'       => [ 'type' => 'int',     'desc' => '(viv) Mobile breakpoint in px', 'default' => '992' ],
+                'use_blurry_images'        => [ 'type' => 'boolean', 'desc' => '(viv) Blur media until full image loads', 'default' => 'false' ],
+                'viv_aspect_ratio'         => [ 'type' => 'string',  'desc' => '(viv) CSS aspect-ratio for media blocks', 'example' => '16 / 9' ],
+                'use_viv_style'            => [ 'type' => 'boolean', 'desc' => '(viv) Load css/viv-style.css', 'default' => 'false' ],
+                'viv_view_toggle'          => [ 'type' => 'boolean', 'desc' => '(viv) Enable grid/list view toggle', 'default' => 'false' ],
+                'viv_list_card'            => [ 'type' => 'int',     'desc' => '(viv) Card ID to use for list view mode' ],
+                'selections_as_terms_color'=> [ 'type' => 'boolean', 'desc' => '(viv) Tint selection chips using term colors', 'default' => 'false' ],
+                'no_results_msg'           => [ 'type' => 'string',  'desc' => '(viv) Custom empty-results message' ],
+            ],
+            'card' => [
+                'name'             => [ 'type' => 'string',  'desc' => 'Card display name' ],
+                'type'             => [ 'type' => 'string',  'desc' => 'Card type', 'values' => 'masonry, metro' ],
+                'card_layout'      => [ 'type' => 'string',  'desc' => 'Alignment', 'values' => 'vertical, horizontal' ],
+                'display_media'    => [ 'type' => 'boolean', 'desc' => 'Show media/thumbnail section' ],
+                'display_overlay'  => [ 'type' => 'boolean', 'desc' => 'Show media overlay layer' ],
+                'display_footer'   => [ 'type' => 'boolean', 'desc' => 'Show footer section' ],
+                'flex_media'       => [ 'type' => 'boolean', 'desc' => 'Auto-height media' ],
+                'responsive'       => [ 'type' => 'boolean', 'desc' => 'Responsive font scaling' ],
+                'layout'           => [ 'type' => 'array',   'desc' => 'Card layers + blocks JSON array' ],
+            ],
+            'facet' => [
+                'name'                      => [ 'type' => 'string',  'desc' => 'Facet display name' ],
+                'slug'                      => [ 'type' => 'string',  'desc' => 'URL parameter name (e.g. _category)' ],
+                'type'                      => [ 'type' => 'string',  'desc' => 'Facet type', 'values' => 'checkbox, radio, button, select, search, autocomplete, range, number, date, color, rating, hierarchy, az_index, selection, sort, pagination, load_more, per_page, result_count, reset, apply, viv_toggle, viv_parent, viv_save_search, viv_bookmark, viv_map, viv_autocomplete, custom_html' ],
+                'source'                    => [ 'type' => 'string',  'desc' => 'Data source', 'example' => 'taxonomy/category, post_field/post_author' ],
+                'filter_type'               => [ 'type' => 'string',  'desc' => 'Filter behavior type' ],
+                'show_empty'                => [ 'type' => 'boolean', 'desc' => 'Show choices with zero results' ],
+                'show_count'                => [ 'type' => 'boolean', 'desc' => 'Show result count per choice' ],
+                'orderby'                   => [ 'type' => 'string',  'desc' => 'Sort choices by', 'values' => 'count, name, facet_order' ],
+                'order'                     => [ 'type' => 'string',  'desc' => 'Sort direction', 'values' => 'asc, desc' ],
+                'logic'                     => [ 'type' => 'string',  'desc' => 'Multi-select logic', 'values' => 'AND, OR' ],
+                'hierarchical'              => [ 'type' => 'boolean', 'desc' => 'Show as hierarchy tree' ],
+                'viv_acc'                   => [ 'type' => 'boolean', 'desc' => '(viv) Wrap facet in accordion UI', 'default' => 'false', 'applies_to' => 'any' ],
+                'viv_acc_subitems'          => [ 'type' => 'boolean', 'desc' => '(viv) Collapse child terms under the accordion', 'default' => 'false', 'applies_to' => 'checkbox' ],
+                'disable_sort'              => [ 'type' => 'boolean', 'desc' => '(viv) Skip default alphabetical sorting', 'default' => 'false', 'applies_to' => 'any' ],
+                'selelctions_group_titles'  => [ 'type' => 'boolean', 'desc' => '(viv) Show taxonomy title before selection chips', 'default' => 'false', 'applies_to' => 'selection' ],
+                'facet_name_to_badge'       => [ 'type' => 'boolean', 'desc' => '(viv) Add facet name badge to selection chips', 'default' => 'false', 'applies_to' => 'selection' ],
+                'selelction_title'          => [ 'type' => 'string',  'desc' => '(viv) Label shown above selection chips', 'applies_to' => 'selection' ],
+                'clear_all_button'          => [ 'type' => 'boolean', 'desc' => '(viv) Show Clear All button below chips', 'default' => 'false', 'applies_to' => 'selection' ],
+                'clear_all_button_text'     => [ 'type' => 'string',  'desc' => '(viv) Custom label for the Clear All button', 'applies_to' => 'selection' ],
+                'search_in_choices'         => [ 'type' => 'boolean', 'desc' => '(viv) Search field inside the checkbox choice list', 'default' => 'false', 'applies_to' => 'checkbox' ],
+                'choices_select_all'        => [ 'type' => 'boolean', 'desc' => '(viv) Show Select All when searching choices', 'default' => 'false', 'applies_to' => 'checkbox' ],
+                'custom_values'             => [ 'type' => 'boolean', 'desc' => '(viv) Enable custom override code for choice values', 'default' => 'false', 'applies_to' => 'checkbox' ],
+            ],
+            'style' => [
+                'name'  => [ 'type' => 'string', 'desc' => 'Style preset name' ],
+                'type'  => [ 'type' => 'string', 'desc' => 'Target type', 'values' => 'checkbox, radio, select, button, ...' ],
+                'css'   => [ 'type' => 'string', 'desc' => 'Generated CSS (auto-built from settings)' ],
+            ],
+        ];
     }
 }
