@@ -378,7 +378,7 @@ class Viv_Agent_CLI {
             'name'          => $name,
             'date'          => $now,
             'modified_date' => $now,
-            'type'          => $data['type'] ?? 'masonry',
+            'type'          => $data['type'] ?? ( $type === 'facet' ? 'checkbox' : 'masonry' ),
             'settings'      => wp_json_encode( $data ),
         ];
 
@@ -388,6 +388,11 @@ class Viv_Agent_CLI {
         }
         if ( $type === 'facet' ) {
             $row['slug'] = $data['slug'] ?? sanitize_title( $name );
+            // Validate facet type to prevent wrong values (e.g., 'masonry')
+            $valid_facet_types = [ 'checkbox', 'radio', 'button', 'select', 'search', 'autocomplete', 'range', 'number', 'date', 'color', 'rating', 'hierarchy', 'az_index', 'selection', 'sort', 'pagination', 'load_more', 'per_page', 'result_count', 'reset', 'apply', 'viv_toggle', 'viv_parent', 'viv_save_search', 'viv_bookmark', 'viv_map', 'viv_autocomplete', 'custom_html' ];
+            if ( ! in_array( $row['type'], $valid_facet_types, true ) ) {
+                WP_CLI::warning( "Facet type '{$row['type']}' is not a known facet type. Valid types: " . implode( ', ', $valid_facet_types ) );
+            }
         }
         if ( $type === 'card' ) {
             $row['layout'] = wp_json_encode( $data['layout'] ?? [] );
