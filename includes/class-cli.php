@@ -230,10 +230,23 @@ class Viv_Agent_CLI {
 
         foreach ( $grids as $grid ) {
             $s          = json_decode( $grid->settings );
-            $viv        = ! empty( $s->en_viv_search ) ? '✓ viv' : '✗ viv';
-            $tpl        = ! empty( $s->card_theme_template ) ? '✓ tpl' : '✗ tpl';
+            $is_viv     = ! empty( $s->en_viv_search ) && $s->en_viv_search === true;
+            $has_tpl    = ! empty( $s->card_theme_template );
             $layout_fmt = is_object( $s->grid_layout ?? null ) ? '✓ layout' : '✗ layout';
-            WP_CLI::line( "  [{$grid->id}] {$grid->name}  {$viv}  {$tpl}  {$layout_fmt}" );
+            $type       = ! empty( $s->type ) ? $s->type : 'masonry';
+            $carousel   = ! empty( $s->carousel ) ? ' carousel' : '';
+
+            // Determine rendering source
+            $source = $is_viv ? 'viv' : 'wpgb';
+
+            // Warn on mismatch
+            $warn = '';
+            $has_native = ! empty( $s->card_types ) && is_array( $s->card_types );
+            if ( $is_viv && $has_native && ! $has_tpl ) {
+                $warn = ' ⚠ MISMATCH';
+            }
+
+            WP_CLI::line( "  [{$grid->id}] {$grid->name}  [{$type}{$carousel}] source={$source}  {$layout_fmt}{$warn}" );
         }
 
         WP_CLI::line( '' );
