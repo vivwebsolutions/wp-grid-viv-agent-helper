@@ -100,6 +100,17 @@ class Viv_Agent_CLI {
                     : 'Missing or wrong format (must be JSON object with area-name keys)'
             );
 
+            // Check for en_viv_search / card type mismatch
+            $is_viv    = ! empty( $s->en_viv_search ) && $s->en_viv_search === true;
+            $has_tpl   = ! empty( $s->card_theme_template );
+            $has_native = ! empty( $s->card_types ) && is_array( $s->card_types );
+            if ( $is_viv && $has_native && ! $has_tpl ) {
+                WP_CLI::warning( "  ⚠ MISMATCH: en_viv_search=true but using native card_types without a PHP template. Cards will be empty. Set en_viv_search=false or add card_theme_template." );
+            }
+            if ( ! $is_viv && $has_tpl ) {
+                WP_CLI::warning( "  ⚠ MISMATCH: en_viv_search=false but card_theme_template is set. The PHP template won't be used. Set en_viv_search=true to use it." );
+            }
+
             $post_type = $s->post_type ?? $s->source ?? '?';
             WP_CLI::line( "  ℹ source: " . ( is_array( $post_type ) ? implode( ', ', $post_type ) : $post_type ) );
         }
