@@ -221,15 +221,37 @@ wp viv reindex            # Clear entire index
 wp viv reindex --facet=1  # Clear specific facet
 ```
 
-### `wp viv describe <type>`
+### `wp viv describe <type> [--format=json]`
 
-Output a settings schema with types, defaults, allowed values, and descriptions. Useful for agents discovering what settings are available.
+Output a settings schema with types, defaults, allowed values, scope notes, and descriptions. Useful for agents discovering what settings are available before calling `wp viv update`.
 
 ```bash
 wp viv describe grid
 wp viv describe facet
 wp viv describe card
+wp viv describe grid --format=json
 ```
+
+Current coverage includes the core WPGB object settings plus the ViV Addon grid and facet settings documented in `wp-grid-viv-addon/README.md`.
+
+### Agent Workflow: Find and Change Settings
+
+```bash
+# 1) Discover available keys
+wp viv describe grid --format=json
+wp viv describe facet --format=json
+
+# 2) Inspect a real object
+wp viv get grid --id=1
+wp viv get facet --id=16
+
+# 3) Merge in only the keys you want to change
+wp viv update grid --id=1 --settings='{"en_viv_popup":true,"en_viv_popup_card":9}'
+wp viv update grid --id=1 --settings='{"en_viv_mobile_filters":true,"viv_mob_breakpoint":9999}'
+wp viv update facet --id=16 --settings='{"search_in_choices":true}'
+```
+
+`wp viv update` merges top-level JSON keys into the existing `settings` object. Use `--replace` only when you intentionally want to overwrite the full settings payload.
 
 ---
 
