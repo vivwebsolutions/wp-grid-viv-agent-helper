@@ -36,9 +36,19 @@ class Viv_Agent_CLI {
         WP_CLI::line( '' );
         WP_CLI::line( 'Current vivgb_data plugins:' );
         foreach ( $result['plugins'] as $type => $info ) {
-            $dir  = $info['dir'] ?? '?';
-            $path = WP_CONTENT_DIR . '/plugins/' . $dir . '/lib/register-facet.php';
-            $mark = file_exists( $path ) ? '✓' : '✗ (file missing)';
+            $dir       = $info['dir'] ?? '?';
+            $facet_php = WP_CONTENT_DIR . '/plugins/' . $dir . '/lib/register-facet.php';
+            $plugin_dir = WP_CONTENT_DIR . '/plugins/' . $dir;
+            if ( file_exists( $facet_php ) ) {
+                $mark = '✓';
+            } elseif ( is_dir( $plugin_dir ) ) {
+                // Plugin is installed but isn't a facet plugin (no
+                // lib/register-facet.php). Common for indexer/UI plugins
+                // like wp-grid-viv-better-search, popup, highlighter.
+                $mark = '⚙ utility';
+            } else {
+                $mark = '✗ (plugin dir missing)';
+            }
             WP_CLI::line( "  {$mark} {$type} → {$dir}" );
         }
     }
@@ -219,7 +229,11 @@ class Viv_Agent_CLI {
             WP_CLI::line( '  ✗ vivgb_data is empty — run: wp viv register-plugins' );
         } else {
             foreach ( $plugin_status as $type => $info ) {
-                $mark = $info['file_exists'] ? '✓' : '✗ (file missing)';
+                switch ( $info['kind'] ?? ( $info['file_exists'] ? 'facet' : 'missing' ) ) {
+                    case 'facet':   $mark = '✓'; break;
+                    case 'utility': $mark = '⚙ utility'; break;
+                    default:        $mark = '✗ (plugin dir missing)';
+                }
                 WP_CLI::line( "  {$mark} {$type} → {$info['dir']}" );
             }
         }

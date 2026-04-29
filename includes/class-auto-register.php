@@ -112,11 +112,17 @@ class Viv_Auto_Register {
         $status     = [];
 
         foreach ( $plugins as $type => $info ) {
-            $dir   = $info['dir'] ?? '';
-            $path  = WP_CONTENT_DIR . '/plugins/' . $dir . '/lib/register-facet.php';
+            $dir          = $info['dir'] ?? '';
+            $facet_path   = WP_CONTENT_DIR . '/plugins/' . $dir . '/lib/register-facet.php';
+            $plugin_dir   = WP_CONTENT_DIR . '/plugins/' . $dir;
+            $is_facet     = file_exists( $facet_path );
+            $is_installed = is_dir( $plugin_dir );
             $status[ $type ] = [
-                'dir'        => $dir,
-                'file_exists' => file_exists( $path ),
+                'dir'         => $dir,
+                'file_exists' => $is_facet,
+                'is_installed'=> $is_installed,
+                'is_facet'    => $is_facet,
+                'kind'        => $is_facet ? 'facet' : ( $is_installed ? 'utility' : 'missing' ),
             ];
         }
 
