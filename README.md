@@ -134,13 +134,21 @@ Patches a grid's settings without touching anything else. Useful for headless se
 | Flag | Description |
 |------|-------------|
 | `--id=N` | Grid ID (required) |
-| `--en-viv-search` | Set `en_viv_search: true` |
-| `--card-template=<path>` | Set `card_theme_template` (path relative to ABSPATH) |
+| `--en-viv-search=<bool>` | Set `en_viv_search` to `true` or `false`. Bare flag (`--en-viv-search`) defaults to true for backwards compatibility. |
+| `--card-template=<path>` | Set `card_theme_template` (path relative to ABSPATH). Pass empty string to clear. |
 | `--layout=<json>` | Set `grid_layout` from a JSON string |
+| `--mobile-filters=<bool>` | Set `en_viv_mobile_filters` |
+| `--mobile-breakpoint=<px>` | Set `viv_mob_breakpoint` (e.g. 992) |
 
 ```bash
 # Enable viv search and set card template
-wp viv patch-grid --id=2 --en-viv-search --card-template=wp-content/viv-card-template.php
+wp viv patch-grid --id=2 --en-viv-search=true --card-template=wp-content/viv-card-template.php
+
+# Disable viv search to fall back to native WPGB rendering
+wp viv patch-grid --id=14 --en-viv-search=false
+
+# Tweak mobile filter behavior
+wp viv patch-grid --id=38 --mobile-filters=true --mobile-breakpoint=768
 
 # Set a full layout JSON
 wp viv patch-grid --id=1 --layout='{"area-top-1":{"facets":[4,1,11]},"sidebar-left":{"facets":[9,10,2,3,7,8]},"area-bottom-1":{"facets":[5]}}'
@@ -212,14 +220,27 @@ wp viv export --id=3                            # Print to stdout
 wp viv export --id=3 --file=grid-3-export.json  # Save to file
 ```
 
-### `wp viv reindex [--facet=N]`
+### `wp viv reindex [--facet=N] [--clear-only]`
 
-Clear the WPGB facet index (or a specific facet's entries). After clearing, rebuild via WP Admin → WP Grid Builder → Settings → Index.
+Clear AND rebuild the WPGB facet index. By default, walks every published post and re-runs the indexer.
 
 ```bash
-wp viv reindex            # Clear entire index
-wp viv reindex --facet=1  # Clear specific facet
+wp viv reindex                  # Clear all + rebuild for every post (default)
+wp viv reindex --facet=1        # Clear + rebuild slug for one facet
+wp viv reindex --clear-only     # Clear without rebuilding (legacy behavior)
 ```
+
+The pre-fix behavior of this command was clear-only — see Viv-docs#118.
+
+### `wp viv audit-facets`
+
+Sweep all facets wired into any grid layout and flag any that have **0 rows** in `wp_wpgb_index` — those render fine but never match anything when filtered. Skips types that legitimately don't index (sort/save-search/bookmarks/autocomplete/parent/toggle/etc).
+
+```bash
+wp viv audit-facets
+```
+
+Caught the silent-broken Blog Date Range facet (Viv-docs#116) where `source` was `'post_date'` instead of `'post_field/post_date'`.
 
 ### `wp viv describe <type> [--format=json]`
 
