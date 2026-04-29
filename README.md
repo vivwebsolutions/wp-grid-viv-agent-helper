@@ -242,6 +242,16 @@ wp viv audit-facets
 
 Caught the silent-broken Blog Date Range facet (Viv-docs#116) where `source` was `'post_date'` instead of `'post_field/post_date'`.
 
+### `wp viv probe`
+
+One-shot health check that runs `status`, `verify-grid`, and `audit-facets` together, plus a summary footer with grid/card/facet/index-row counts and DB-integrity checks for orphan index rows.
+
+```bash
+wp viv probe
+```
+
+Use as the canonical "is this install healthy?" check before and after config changes. Output ends with `Success: All checks clean.` or `Warning: Orphan index rows detected — clean with wp viv reindex.`
+
 ### `wp viv describe <type> [--format=json]`
 
 Output a settings schema with types, defaults, allowed values, scope notes, and descriptions. Useful for agents discovering what settings are available before calling `wp viv update`.
