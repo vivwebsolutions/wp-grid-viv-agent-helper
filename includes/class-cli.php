@@ -857,24 +857,34 @@ class Viv_Agent_CLI {
     }
 
     /**
-     * Trigger WPGB facet index rebuild.
+     * Rebuild the WPGB facet index from scratch.
+     *
+     * Walks every published post and re-runs the indexer for each. By
+     * default also clears existing index entries first. Use --clear-only
+     * to clear without rebuilding.
      *
      * ## OPTIONS
      *
      * [--facet=<id>]
-     * : Reindex a specific facet ID only
+     * : Reindex a specific facet's slug only (still walks all posts; only
+     *   the named facet's index rows are deleted/rebuilt).
+     *
+     * [--clear-only]
+     * : Clear without rebuilding. Useful before manual edits.
      *
      * ## EXAMPLES
      *
-     *     wp viv reindex
-     *     wp viv reindex --facet=1
+     *     wp viv reindex                  # Clear all + rebuild for every post
+     *     wp viv reindex --facet=1        # Clear + rebuild slug for facet 1
+     *     wp viv reindex --clear-only     # Clear all without rebuilding
      *
      * @subcommand reindex
      */
     public function reindex( $args, $assoc_args ) {
         global $wpdb;
 
-        $facet_id = ! empty( $assoc_args['facet'] ) ? (int) $assoc_args['facet'] : 0;
+        $facet_id   = ! empty( $assoc_args['facet'] ) ? (int) $assoc_args['facet'] : 0;
+        $clear_only = ! empty( $assoc_args['clear-only'] );
 
         if ( $facet_id ) {
             $facet = $wpdb->get_row( $wpdb->prepare(
@@ -882,22 +892,54 @@ class Viv_Agent_CLI {
             ) );
             if ( ! $facet ) { WP_CLI::error( "Facet {$facet_id} not found." ); return; }
 
-            // Clear existing index entries for this facet
             $deleted = $wpdb->query( $wpdb->prepare(
                 "DELETE FROM {$wpdb->prefix}wpgb_index WHERE slug = %s", $facet->slug
             ) );
             WP_CLI::line( "Cleared {$deleted} index entries for facet {$facet->name} ({$facet->slug})" );
-            WP_CLI::line( "To fully reindex, use WP Admin → WP Grid Builder → Settings → Index." );
+
+            if ( $clear_only ) {
+                WP_CLI::success( 'Cleared. Run without --clear-only to rebuild.' );
+                return;
+            }
+
+            // Rebuild: walk every post that could match this facet and reindex
+            if ( ! class_exists( '\WP_Grid_Builder\Includes\Indexer' ) ) {
+                WP_CLI::error( 'WPGB Indexer class not available.' );
+                return;
+            }
+            $indexer  = new \WP_Grid_Builder\Includes\Indexer();
+            $post_ids = $wpdb->get_col( "SELECT ID FROM {$wpdb->posts} WHERE post_status = 'publish'" );
+            $count    = 0;
+            foreach ( $post_ids as $pid ) {
+                $indexer->index_object_id( (int) $pid, 'post' );
+                $count++;
+            }
+            $new_entries = (int) $wpdb->get_var( $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$wpdb->prefix}wpgb_index WHERE slug = %s", $facet->slug
+            ) );
+            WP_CLI::success( "Reindexed {$count} posts. Facet now has {$new_entries} index entries." );
         } else {
-            // Clear entire index
             $count = $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}wpgb_index" );
             $wpdb->query( "TRUNCATE TABLE {$wpdb->prefix}wpgb_index" );
             WP_CLI::line( "Cleared {$count} index entries." );
-            WP_CLI::line( "To rebuild the index, visit WP Admin → WP Grid Builder → Settings → Index." );
-            WP_CLI::line( "Or trigger via REST: POST /wp-json/wpgb/v2/settings with indexer action." );
-        }
 
-        WP_CLI::success( 'Index cleared. Rebuild via WPGB admin to repopulate.' );
+            if ( $clear_only ) {
+                WP_CLI::success( 'Cleared. Run without --clear-only to rebuild, or use the WPGB admin Index page.' );
+                return;
+            }
+
+            if ( ! class_exists( '\WP_Grid_Builder\Includes\Indexer' ) ) {
+                WP_CLI::error( 'WPGB Indexer class not available.' );
+                return;
+            }
+            $indexer  = new \WP_Grid_Builder\Includes\Indexer();
+            $post_ids = $wpdb->get_col( "SELECT ID FROM {$wpdb->posts} WHERE post_status = 'publish'" );
+            foreach ( $post_ids as $pid ) {
+                $indexer->index_object_id( (int) $pid, 'post' );
+            }
+            $new_total = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}wpgb_index" );
+            WP_CLI::success( "Reindexed " . count( $post_ids ) . " posts. Index now has {$new_total} entries." );
+        }
     }
 
     /* ================================================================ */
