@@ -94,10 +94,11 @@ class Viv_Agent_CLI {
             );
 
             $tpl = $s->card_theme_template ?? '';
+            $has_native = ! empty( $s->card_types ) && is_array( $s->card_types );
             self::check( 'card_theme_template',
-                ! empty( $tpl ) && file_exists( ABSPATH . $tpl ),
+                ! empty( $tpl ) && file_exists( ABSPATH . $tpl ) || $has_native,
                 empty( $tpl )
-                    ? 'Not set — cards will render empty'
+                    ? ( $has_native ? 'Not set — using native card_types instead (OK)' : 'Not set AND no card_types — cards will render empty' )
                     : "Set to '{$tpl}'" . ( file_exists( ABSPATH . $tpl ) ? '' : ' — FILE NOT FOUND' )
             );
 
@@ -110,15 +111,14 @@ class Viv_Agent_CLI {
                     : 'Missing or wrong format (must be JSON object with area-name keys)'
             );
 
-            // Check for en_viv_search / card type mismatch
+            // viv-addon's AJAX path renders both PHP-template cards AND
+            // native card_types just fine, so the only real mismatch is
+            // when card_theme_template is set but en_viv_search isn't —
+            // then the template is dead code (native rendering won't use it).
             $is_viv    = ! empty( $s->en_viv_search ) && $s->en_viv_search === true;
             $has_tpl   = ! empty( $s->card_theme_template );
-            $has_native = ! empty( $s->card_types ) && is_array( $s->card_types );
-            if ( $is_viv && $has_native && ! $has_tpl ) {
-                WP_CLI::warning( "  ⚠ MISMATCH: en_viv_search=true but using native card_types without a PHP template. Cards will be empty. Set en_viv_search=false or add card_theme_template." );
-            }
             if ( ! $is_viv && $has_tpl ) {
-                WP_CLI::warning( "  ⚠ MISMATCH: en_viv_search=false but card_theme_template is set. The PHP template won't be used. Set en_viv_search=true to use it." );
+                WP_CLI::warning( "  ⚠ MISMATCH: en_viv_search=false but card_theme_template is set. The PHP template won't be used by native WPGB rendering. Either set en_viv_search=true to use the template, or clear the template path." );
             }
 
             $post_type = $s->post_type ?? $s->source ?? '?';
@@ -136,18 +136,28 @@ class Viv_Agent_CLI {
      * --id=<id>
      * : Grid ID to patch
      *
-     * [--en-viv-search]
-     * : Set en_viv_search to true
+     * [--en-viv-search=<bool>]
+     * : Set en_viv_search to true|false. Bare flag form (--en-viv-search)
+     *   without a value still defaults to true for backwards compatibility.
      *
      * [--card-template=<path>]
-     * : Set card_theme_template (relative to ABSPATH, e.g. wp-content/viv-card-template.php)
+     * : Set card_theme_template (relative to ABSPATH, e.g. wp-content/viv-card-template.php).
+     *   Pass empty string to clear.
      *
      * [--layout=<json>]
      * : Set grid_layout as JSON string
      *
+     * [--mobile-filters=<bool>]
+     * : Set en_viv_mobile_filters (true|false)
+     *
+     * [--mobile-breakpoint=<px>]
+     * : Set viv_mob_breakpoint (e.g. 992)
+     *
      * ## EXAMPLES
      *
-     *     wp viv patch-grid --id=2 --en-viv-search --card-template=wp-content/viv-card-template.php
+     *     wp viv patch-grid --id=2 --en-viv-search=true --card-template=wp-content/viv-card-template.php
+     *     wp viv patch-grid --id=14 --en-viv-search=false  # disable AJAX rendering
+     *     wp viv patch-grid --id=38 --mobile-filters=true --mobile-breakpoint=768
      *
      * @subcommand patch-grid
      */
@@ -172,18 +182,43 @@ class Viv_Agent_CLI {
         $settings = json_decode( $row->settings, true );
         $changed  = [];
 
-        if ( isset( $assoc_args['en-viv-search'] ) ) {
-            $settings['en_viv_search'] = true;
-            $changed[] = 'en_viv_search = true';
+        // Coerce --en-viv-search=true|false; bare flag still means true.
+        $to_bool = function( $v ) {
+            if ( is_bool( $v ) ) return $v;
+            $v = strtolower( (string) $v );
+            return ! in_array( $v, [ 'false', '0', 'no', 'off', '' ], true );
+        };
+
+        if ( array_key_exists( 'en-viv-search', $assoc_args ) ) {
+            $val = $to_bool( $assoc_args['en-viv-search'] );
+            $settings['en_viv_search'] = $val;
+            $changed[] = 'en_viv_search = ' . ( $val ? 'true' : 'false' );
         }
 
-        if ( ! empty( $assoc_args['card-template'] ) ) {
-            $tpl = $assoc_args['card-template'];
-            if ( ! file_exists( ABSPATH . $tpl ) ) {
-                WP_CLI::warning( "card-template file not found at ABSPATH/{$tpl} — setting anyway." );
+        if ( array_key_exists( 'mobile-filters', $assoc_args ) ) {
+            $val = $to_bool( $assoc_args['mobile-filters'] );
+            $settings['en_viv_mobile_filters'] = $val;
+            $changed[] = 'en_viv_mobile_filters = ' . ( $val ? 'true' : 'false' );
+        }
+
+        if ( array_key_exists( 'mobile-breakpoint', $assoc_args ) ) {
+            $bp = (int) $assoc_args['mobile-breakpoint'];
+            $settings['viv_mob_breakpoint'] = $bp;
+            $changed[] = "viv_mob_breakpoint = {$bp}";
+        }
+
+        if ( array_key_exists( 'card-template', $assoc_args ) ) {
+            $tpl = (string) $assoc_args['card-template'];
+            if ( '' === $tpl ) {
+                $settings['card_theme_template'] = '';
+                $changed[] = 'card_theme_template = (cleared)';
+            } else {
+                if ( ! file_exists( ABSPATH . $tpl ) ) {
+                    WP_CLI::warning( "card-template file not found at ABSPATH/{$tpl} — setting anyway." );
+                }
+                $settings['card_theme_template'] = $tpl;
+                $changed[] = "card_theme_template = {$tpl}";
             }
-            $settings['card_theme_template'] = $tpl;
-            $changed[] = "card_theme_template = {$tpl}";
         }
 
         if ( ! empty( $assoc_args['layout'] ) ) {
@@ -197,7 +232,7 @@ class Viv_Agent_CLI {
         }
 
         if ( empty( $changed ) ) {
-            WP_CLI::warning( 'Nothing to change. Use --en-viv-search, --card-template, or --layout.' );
+            WP_CLI::warning( 'Nothing to change. Use --en-viv-search, --card-template, --layout, --mobile-filters, or --mobile-breakpoint.' );
             return;
         }
 
