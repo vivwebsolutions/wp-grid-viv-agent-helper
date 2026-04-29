@@ -285,6 +285,81 @@ class Viv_Agent_CLI {
         WP_CLI::line( '  WP version:      ' . get_bloginfo('version') );
     }
 
+    /**
+     * Audit all facets for silent-broken state: wired into a grid layout
+     * yet have 0 rows in wp_wpgb_index. These render fine but never match
+     * any post when filtered.
+     *
+     * Skips facet types that don't index (selection, search, viv_parent,
+     * viv_toggle, load_more, pagination, per_page, result_count, reset).
+     *
+     * ## EXAMPLES
+     *
+     *     wp viv audit-facets
+     *
+     * @subcommand audit-facets
+     */
+    public function audit_facets( $args, $assoc_args ) {
+        global $wpdb;
+
+        // Facet types that legitimately don't store rows in wp_wpgb_index:
+        // - selection/search/sort/reset/load_more/pagination/per_page/result_count: utility facets that don't filter via index
+        // - viv_parent: groups other facets in an accordion, no own data
+        // - viv_toggle: inverts an excluded_value at query time
+        // - viv_save_search: lets user persist the current filter state, no own index
+        // - viv_bookmark: filters to "my bookmarks" at runtime via VIV_BOO data
+        // - viv_autocomplete: uses better-search engine, not the WPGB index
+        $no_index_types = [
+            'selection', 'search', 'sort', 'reset',
+            'load_more', 'pagination', 'per_page', 'result_count',
+            'viv_parent', 'viv_toggle',
+            'viv_save_search', 'viv_save_search2',
+            'viv_bookmark', 'viv_autocomplete',
+        ];
+
+        // Build map of facet_id -> grid_name for facets actually wired into a layout.
+        $used = [];
+        $grids = $wpdb->get_results( "SELECT id, name, settings FROM {$wpdb->prefix}wpgb_grids" );
+        foreach ( $grids as $g ) {
+            $s = json_decode( $g->settings, true );
+            $layout = $s['grid_layout'] ?? null;
+            if ( ! is_array( $layout ) ) continue;
+            foreach ( $layout as $cfg ) {
+                if ( ! is_array( $cfg ) ) continue;
+                $facets_in_area = $cfg['facets'] ?? null;
+                if ( ! is_array( $facets_in_area ) ) continue;
+                foreach ( $facets_in_area as $fid ) {
+                    $used[ (int) $fid ] = $g->name;
+                }
+            }
+        }
+
+        $facets = $wpdb->get_results( "SELECT id, name, slug, type, source FROM {$wpdb->prefix}wpgb_facets ORDER BY id" );
+        $broken = [];
+        foreach ( $facets as $f ) {
+            if ( ! isset( $used[ (int) $f->id ] ) ) continue;
+            if ( in_array( $f->type, $no_index_types, true ) ) continue;
+            $count = (int) $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$wpdb->prefix}wpgb_index WHERE slug = %s", $f->slug ) );
+            if ( $count === 0 ) {
+                $broken[] = "  ⚠ [{$f->id}] type={$f->type} slug={$f->slug} source=\"{$f->source}\" — used in grid \"" . $used[ (int) $f->id ] . "\" — 0 index entries";
+            }
+        }
+
+        WP_CLI::line( '── Facet health audit ──' );
+        WP_CLI::line( '  Total facets: ' . count( $facets ) );
+        WP_CLI::line( '  Used in grids: ' . count( $used ) );
+        WP_CLI::line( '' );
+        if ( empty( $broken ) ) {
+            WP_CLI::success( 'All wired facets have non-empty indexes.' );
+        } else {
+            WP_CLI::warning( count( $broken ) . ' facet(s) wired into a grid but indexed empty:' );
+            foreach ( $broken as $line ) WP_CLI::line( $line );
+            WP_CLI::line( '' );
+            WP_CLI::line( 'Common causes: wrong "source" column value (e.g. "post_date" instead of "post_field/post_date"); taxonomy slug mismatch; meta_key not yet present on any post.' );
+            WP_CLI::line( 'See Viv-docs#116 for a worked example.' );
+        }
+    }
+
     /* ================================================================
      *  CRUD commands for grids, cards, facets, styles
      * ================================================================ */
