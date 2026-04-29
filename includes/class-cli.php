@@ -321,6 +321,59 @@ class Viv_Agent_CLI {
     }
 
     /**
+     * Run all the diagnostic checks in one pass. Equivalent to
+     * `wp viv status && wp viv verify-grid && wp viv audit-facets` but
+     * with summary counts at the end so you can tell at a glance
+     * whether the install is healthy.
+     *
+     * ## EXAMPLES
+     *
+     *     wp viv probe
+     *
+     * @subcommand probe
+     */
+    public function probe( $args, $assoc_args ) {
+        global $wpdb;
+        WP_CLI::line( "═══ VIV INSTALL HEALTH PROBE ═══\n" );
+
+        $this->status( [], [] );
+
+        WP_CLI::line( '' );
+        $this->verify_grid( [], [] );
+
+        WP_CLI::line( '' );
+        $this->audit_facets( [], [] );
+
+        // Summary line
+        $grids = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}wpgb_grids" );
+        $cards = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}wpgb_cards" );
+        $facets = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}wpgb_facets" );
+        $index_rows = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$wpdb->prefix}wpgb_index" );
+        $orphan_index = (int) $wpdb->get_var( "
+            SELECT COUNT(*) FROM {$wpdb->prefix}wpgb_index i
+            LEFT JOIN {$wpdb->prefix}wpgb_facets f ON f.slug = i.slug
+            WHERE f.id IS NULL
+        " );
+        $orphan_objs = (int) $wpdb->get_var( "
+            SELECT COUNT(*) FROM {$wpdb->prefix}wpgb_index i
+            LEFT JOIN {$wpdb->posts} p ON p.ID = i.object_id
+            WHERE p.ID IS NULL
+        " );
+
+        WP_CLI::line( '' );
+        WP_CLI::line( '── Summary ──' );
+        WP_CLI::line( "  grids: {$grids}, cards: {$cards}, facets: {$facets}" );
+        WP_CLI::line( "  index rows: {$index_rows}" );
+        WP_CLI::line( "    orphan slugs (no matching facet): {$orphan_index}" );
+        WP_CLI::line( "    rows pointing at deleted posts: {$orphan_objs}" );
+        if ( $orphan_index || $orphan_objs ) {
+            WP_CLI::warning( 'Orphan index rows detected — clean with `wp viv reindex`.' );
+        } else {
+            WP_CLI::success( 'All checks clean.' );
+        }
+    }
+
+    /**
      * Audit all facets for silent-broken state: wired into a grid layout
      * yet have 0 rows in wp_wpgb_index. These render fine but never match
      * any post when filtered.
