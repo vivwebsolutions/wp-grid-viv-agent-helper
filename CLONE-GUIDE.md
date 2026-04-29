@@ -93,9 +93,24 @@ wp viv status
 
 | File | Purpose |
 |------|---------|
-| `mu-plugins/demo-cpt.php` | CPT, taxonomies, WPGB v2 shims, layout CSS |
+| `mu-plugins/demo-cpt.php` | CPT, taxonomies, WPGB v2 shims, layout CSS, **20+ filters** for grid behavior + a11y + perf + security |
 | `wp-content/viv-card-template.php` | Card rendering (SHORTINIT-safe) |
 | `wp-content/themes/genesis-block-theme/favicon.svg` | Site favicon |
+
+### What `demo-cpt.php` does
+
+The mu-plugin has grown into the central place where demo-site behavior lives — beyond just CPT registration. Notable filters:
+
+- **CPT + taxonomy registration** — `resource`, `event`, `event_category`, `resource_category/type/format/difficulty`, `product_brand`
+- **Rewrite-rules auto-flush** (Viv-docs#106) — bumps `demo_cpt_rewrite_version` when CPT registrations change
+- **Events post_date swap** (#96) — replaces `$post->post_date` with `event_date` meta for the event CPT inside `wp_grid_builder/grid/the_object`
+- **Layout / responsive CSS** — chip-style category filters (#87), horizontal-card container query shim (#83), Read-more pseudo-element on Jade
+- **`?in_iframe=1` handler** (#103) — hides theme chrome inside card-style + mobile-filter iframes
+- **Submenu toggle a11y** (#104) — MutationObserver labels JS-injected `button.toggle-sub` with `aria-label="Toggle submenu"`
+- **Home width cap** (#105) — `body.home .entry-content { max-width: 920px }` at 960px+
+- **WC frontend dequeue** (#122) — drops 6 WC JS handles on non-shop pages
+- **User enumeration lockdown** (#123) — blocks `?author=N`, hides admin via `rest_user_query`
+- **WP/PHP version + XMLrpc hardening** (#124) — strips generator meta, X-Powered-By, disables auth XMLrpc methods
 
 ## Troubleshooting
 
