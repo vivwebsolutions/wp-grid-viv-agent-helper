@@ -51,13 +51,18 @@ class Viv_Admin_Page {
                     <tr><td colspan="4" style="color:#c00">⚠ vivgb_data is empty — click Sync below</td></tr>
                 <?php else : ?>
                     <?php foreach ( $plugin_status as $type => $info ) :
-                        $ok = $info['file_exists'];
+                        $kind = $info['kind'] ?? ( $info['file_exists'] ?? false ? 'facet' : 'missing' );
+                        switch ( $kind ) {
+                            case 'facet':   $icon = '✅'; $color = 'green'; $label = 'Facet plugin'; break;
+                            case 'utility': $icon = '⚙'; $color = '#666';  $label = 'Utility (no facet)'; break;
+                            default:        $icon = '❌'; $color = 'red';   $label = 'Plugin dir missing';
+                        }
                     ?>
                     <tr>
-                        <td><?php echo $ok ? '✅' : '❌'; ?></td>
+                        <td><?php echo $icon; ?></td>
                         <td><code><?php echo esc_html( $type ); ?></code></td>
                         <td><?php echo esc_html( $info['dir'] ); ?></td>
-                        <td style="color:<?php echo $ok ? 'green' : 'red'; ?>"><?php echo $ok ? 'Found' : 'Missing'; ?></td>
+                        <td style="color:<?php echo $color; ?>"><?php echo esc_html( $label ); ?></td>
                     </tr>
                     <?php endforeach; ?>
                 <?php endif; ?>
