@@ -246,18 +246,33 @@ class Viv_Agent_CLI {
             $s          = json_decode( $grid->settings );
             $is_viv     = ! empty( $s->en_viv_search ) && $s->en_viv_search === true;
             $has_tpl    = ! empty( $s->card_theme_template );
-            $layout_fmt = is_object( $s->grid_layout ?? null ) ? '✓ layout' : '✗ layout';
+            // Layout is OK if it's an object (facets wired) OR an empty
+            // array (sliders/carousels with no toolbar facets — valid).
+            // Only flag if it's null/missing or a non-empty array (which
+            // would suggest a malformed serialization).
+            $gl = $s->grid_layout ?? null;
+            if ( is_object( $gl ) ) {
+                $layout_fmt = '✓ layout';
+            } elseif ( is_array( $gl ) && empty( $gl ) ) {
+                $layout_fmt = '✓ layout (empty)';
+            } else {
+                $layout_fmt = '✗ layout';
+            }
             $type       = ! empty( $s->type ) ? $s->type : 'masonry';
             $carousel   = ! empty( $s->carousel ) ? ' carousel' : '';
 
             // Determine rendering source
             $source = $is_viv ? 'viv' : 'wpgb';
 
-            // Warn on mismatch
+            // Warn on real mismatches only. en_viv_search=true with
+            // native card_types and NO PHP template is fine — viv-addon's
+            // AJAX path renders native cards too. Only flag if the legacy
+            // expectation (PHP template required) was clearly intended:
+            // when there's both card_theme_template AND en_viv_search=false.
             $warn = '';
-            $has_native = ! empty( $s->card_types ) && is_array( $s->card_types );
-            if ( $is_viv && $has_native && ! $has_tpl ) {
-                $warn = ' ⚠ MISMATCH';
+            if ( ! $is_viv && $has_tpl ) {
+                // PHP template configured but rendering native — template is dead code.
+                $warn = ' ⚠ MISMATCH (template unused)';
             }
 
             WP_CLI::line( "  [{$grid->id}] {$grid->name}  [{$type}{$carousel}] source={$source}  {$layout_fmt}{$warn}" );
